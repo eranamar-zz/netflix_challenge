@@ -142,19 +142,26 @@ calculate_rating_stat = function(ratingMat) {
 
 # -------- Generic Models ----------
 
-ensemble <- function(X, y, k, FUN, ...){
+ensemble <- function(X, y, k, FUN, predict.FUN, ...){
   # Chooses random features from the matrix X (70% of the features) and
   # trains a predictor. runs the process k times and sorts the predictors
   # according to training error.
+  if (missing(predict.FUN)){
+    predict.FUN = predict
+  }
+  
   ls <- list()
   best <- list(score = Inf, fields = NULL)
   for (i in 1:k){
     fields <- sample(c(T,F), ncol(X), replace=T, prob = c(0.7, 0.3))
     l <- FUN(X[,fields], y, ...)
-    score <- loss(y, predict(l, X[,fields]))
+    score <- loss(y, predict.FUN(l, X[,fields]))
     ls[[i]] <- list(model = l,fields = fields, score = score )
   }
-  return(ls[order(sapply(ls, function(x)(x$score)))])
+  return(list(
+      predictors = ls[order(sapply(ls, function(x)(x$score)))],
+      predict = predict.FUN
+         ))
 }
 
 ensemble.predict <- function(ens, X, k){
@@ -165,8 +172,8 @@ ensemble.predict <- function(ens, X, k){
   }
   
   pred <- rep(0, nrow(X))
-  for (e in ens[1:k]){
-    pred <- pred + predict(e$model, X[,e$fields])
+  for (e in ens$predictors[1:k]){
+    pred <- pred + ens$predict(e$model, X[,e$fields])
   }
   pred<-pred/k 
   return(to_rank(pred))
@@ -209,7 +216,7 @@ impute.iteratively = function(FUN, X, y, as_ordered, imput.args, predict.args, p
       }
       
       imputers[[name]] <- do.call(FUN, c(list(x=x_impt_train, y=y_impt_train), imput.args))
-      X[!X.not.na[,name], name] <- predict(imputers[[name]], X[!X.not.na[,name], 1:(i-1)])
+      X[!X.not.na[,name], name] <- to_rank(predict(imputers[[name]], X[!X.not.na[,name], 1:(i-1)]))
     } else {
       imputers[[name]] <- NULL
     }
