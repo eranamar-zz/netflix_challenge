@@ -1,4 +1,4 @@
-#Simplifies Netflix Challenge (research project)
+#Simplified Netflix Challenge (research project)
 
 This was the final project in Statistical Machine Learning course at HUJI (winter 2016/17).
 
